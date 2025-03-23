@@ -5,6 +5,9 @@ import os
 import csv
 import io
 import re
+import seaborn as sns
+import matplotlib.pyplot as plt
+from sklearn.preprocessing import LabelEncoder, OneHotEncoder
 
 # Set OpenAI API key
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
@@ -125,3 +128,50 @@ if st.button("🚀 Generate Dataset"):
 
         except Exception as e:
             st.error(f"❌ An error occurred: {str(e)}")
+
+# DataWiz Tool - Upload & Analyze Dataset
+st.subheader("📊 DataWiz - AI-Powered Data Analysis")
+uploaded_file = st.file_uploader("📤 Upload your dataset for analysis", type=["csv"])
+
+if uploaded_file:
+    df = pd.read_csv(uploaded_file)
+    st.subheader("📌 Uploaded Dataset Preview")
+    st.dataframe(df)
+    
+    # Convert categorical to numeric
+    categorical_cols = df.select_dtypes(include=['object']).columns.tolist()
+    
+    for col in categorical_cols:
+        if df[col].nunique() <= 5:
+            df = pd.get_dummies(df, columns=[col])  # One-Hot Encoding
+        else:
+            le = LabelEncoder()
+            df[col] = le.fit_transform(df[col])  # Label Encoding
+    
+    st.subheader("🔄 Transformed Dataset")
+    st.dataframe(df)
+    
+    # Summary statistics
+    st.subheader("📊 Summary Statistics")
+    st.write(df.describe())
+    
+    # AI-driven visualization
+    query = st.text_input("🔍 Ask a question about the data (e.g., 'Show relation between X and Y')")
+    if st.button("Generate Graph📊"):
+     if query:
+        with st.spinner("🤖 Analyzing query..."):
+            words = query.lower().split()
+            selected_columns = [col for col in df.columns if any(word in col.lower() for word in words)]
+            
+            if len(selected_columns) >= 2:
+                st.subheader(f"📊 AI-Driven streamlit Visualization: {selected_columns[0]} vs {selected_columns[1]}")
+                fig, ax = plt.subplots()
+                sns.scatterplot(x=df[selected_columns[0]], y=df[selected_columns[1]], ax=ax)
+                st.pyplot(fig)
+            else:
+                st.warning("⚠️ Could not determine relevant columns. Try a different query.")
+    
+    # Download Transformed Dataset
+    transformed_csv = df.to_csv(index=False).encode("utf-8")
+    st.download_button("📥 Download Transformed CSV", transformed_csv, "transformed_dataset.csv", "text/csv")
+
